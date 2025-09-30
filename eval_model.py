@@ -14,6 +14,9 @@ import matplotlib.pyplot as plt
 from pytorch3d.transforms import Rotate, axis_angle_to_matrix
 import math
 import numpy as np
+from visualize import render_voxel_to_360gif,render_pointcloud_360gif, render_mesh360gif, distance_map
+import os
+
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Singleto3D', add_help=False)
@@ -165,10 +168,43 @@ def evaluate_model(args):
         metrics = evaluate(predictions, mesh_gt, thresholds, args)
 
         # TODO:
-        # if (step % args.vis_freq) == 0:
-        #     # visualization block
-        #     #  rend = 
-        #     plt.imsave(f'vis/{step}_{args.type}.png', rend)
+        if (step % args.vis_freq) == 0:
+            # visualization block
+            #  rend = 
+            # RGB image
+            
+            if not os.path.exists('vis'):
+                os.makedirs('vis')
+            if args.type == 'vox':
+                voxels = predictions
+                
+                # predicted 3D voxel grid
+                render_voxel_to_360gif(voxels[0:1], image_size=256, output_path=f'vis/{step}_{args.type}_pred.gif', device=args.device)
+                # ground truth mesh
+                # render_voxel_to_360gif(feed_dict['voxels'][0:1].to(args.device), image_size=256, output_path=f'vis/{step}_{args.type}_gt.gif', device=args.device)
+                render_mesh360gif(mesh_gt[0:1], image_size=256, output_path=f'vis/{step}_{args.type}_gt.gif', color=[0.7,0.7,1],device=args.device)
+            elif args.type == 'point':
+                point_cloud = predictions
+                point_cloud = point_cloud[0].unsqueeze(0)
+                render_pointcloud_360gif(point_cloud, image_size=256, output_path=f'vis/{step}_{args.type}_pred.gif', color=[0.7,0.7,1],device=args.device)
+                render_mesh360gif(mesh_gt[0:1], image_size=256, output_path=f'vis/{step}_{args.type}_gt.gif', color=[0.7,0.7,1],device=args.device)
+                pointclouds_tgt = sample_points_from_meshes(mesh_gt, args.n_points).to(args.device)
+                error_distance = distance_map(point_cloud, pointclouds_tgt,kind='point')
+                color = torch.full_like(point_cloud, 0.1).repeat(1, 1, 1)  # [1, 1000, 2]
+                color[..., :1] = error_distance
+                # error map
+                render_pointcloud_360gif(point_cloud, image_size=256, output_path=f'vis/{step}_{args.type}_pred_error.gif', color=color,device=args.device)
+
+            elif args.type == 'mesh':
+                mesh = predictions
+                render_mesh360gif(mesh[0:1], image_size=256, output_path=f'vis/{step}_{args.type}_pred.gif', device=args.device)
+                render_mesh360gif(mesh_gt[0:1], image_size=256, output_path=f'vis/{step}_{args.type}_gt.gif', device=args.device)
+            elif args.type == 'implicit':
+                implicits = predictions
+                render_voxel_to_360gif(implicits[0:1], image_size=256, output_path=f'vis/{step}_{args.type}_pred.gif', device=args.device)
+                render_mesh360gif(mesh_gt[0:1], image_size=256, output_path=f'vis/{step}_{args.type}_gt.gif', color=[0.7,0.7,1],device=args.device)
+
+            plt.imsave(f'vis/{step}_{args.type}.png', images_gt[0].cpu().numpy())
       
 
         total_time = time.time() - start_time

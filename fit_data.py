@@ -6,11 +6,11 @@ import losses
 from pytorch3d.utils import ico_sphere
 from r2n2_custom import R2N2
 from pytorch3d.ops import sample_points_from_meshes
-from pytorch3d.structures import Meshes
+from pytorch3d.structures import Meshes, Pointclouds
 import dataset_location
 import torch
 
-
+from visualize import render_voxel_to_360gif,render_pointcloud_360gif, render_mesh360gif
 
 
 
@@ -32,6 +32,7 @@ def fit_mesh(mesh_src, mesh_tgt, args):
 
     deform_vertices_src = torch.zeros(mesh_src.verts_packed().shape, requires_grad=True, device='cuda')
     optimizer = torch.optim.Adam([deform_vertices_src], lr = args.lr)
+    
     print("Starting training !")
     for step in range(start_iter, args.max_iter):
         iter_start_time = time.time()
@@ -60,7 +61,8 @@ def fit_mesh(mesh_src, mesh_tgt, args):
     mesh_src.offset_verts_(deform_vertices_src)
 
     print('Done!')
-
+    render_mesh360gif(mesh_src, output_path="data/mesh_src.gif", image_size=256, device=None)
+    render_mesh360gif(mesh_tgt, output_path="data/mesh_tgt.gif", image_size=256, device=None)
 
 def fit_pointcloud(pointclouds_src, pointclouds_tgt, args):
     start_iter = 0
@@ -83,6 +85,13 @@ def fit_pointcloud(pointclouds_src, pointclouds_tgt, args):
         print("[%4d/%4d]; ttime: %.0f (%.2f); loss: %.3f" % (step, args.max_iter, total_time,  iter_time, loss_vis))
     
     print('Done!')
+    # feats = torch.full((pointclouds_src.squeeze(0).shape[0], 3), 0.7, device=pointclouds_src.device)
+    # pointclouds_src = Pointclouds(pointclouds_src, features = [feats])
+    # pointclouds_tgt = Pointclouds(pointclouds_tgt, features = [feats])
+
+    # point_cloud = pytorch3d.structures.Pointclouds(points=[points], features=[textures])
+    render_pointcloud_360gif(pointclouds_src, output_path="data/pointclouds_src.gif", image_size=256, background_color=[1,1,1], device=None)
+    render_pointcloud_360gif(pointclouds_tgt, output_path="data/pointclouds_tgt.gif", image_size=256, background_color=[1,1,1], device=None)
 
 
 def fit_voxel(voxels_src, voxels_tgt, args):
@@ -106,6 +115,8 @@ def fit_voxel(voxels_src, voxels_tgt, args):
         print("[%4d/%4d]; ttime: %.0f (%.2f); loss: %.3f" % (step, args.max_iter, total_time,  iter_time, loss_vis))
     
     print('Done!')
+    render_voxel_to_360gif(voxels_src, image_size=256, voxel_size=64, output_path="data/voxels_src.gif", device=None)
+    render_voxel_to_360gif(voxels_tgt, image_size=256, voxel_size=64, output_path="data/voxels_tgt.gif", device=None)
 
 
 def train_model(args):
@@ -151,7 +162,7 @@ def train_model(args):
 
 
     
-    
+
 
 
 if __name__ == '__main__':
